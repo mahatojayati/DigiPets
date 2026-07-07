@@ -1,0 +1,6 @@
+{
+  "name": "Digital Pets",
+  "description": "An AI-powered desktop companion application where users create, customize, and float digital pets on their screen.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
