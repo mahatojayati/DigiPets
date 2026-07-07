@@ -26,7 +26,11 @@ interface PetContextType {
   setActivePet: (pet: Pet | null) => void;
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
-  createPet: () => Promise<boolean>;
+  currentView: 'landing' | 'preview';
+  setCurrentView: (view: 'landing' | 'preview') => void;
+  previewPet: { id: string; url: string; method: 'upload' | 'generate'; prompt?: string } | null;
+  setPreviewPet: (pet: { id: string; url: string; method: 'upload' | 'generate'; prompt?: string } | null) => void;
+  createPet: (confirmedName: string, confirmedUrl: string, confirmedMethod: 'upload' | 'generate') => Promise<boolean>;
   resetState: () => void;
   savedPets: Pet[];
   deletePet: (id: string) => void;
@@ -43,6 +47,10 @@ export const PetProvider = ({ children }: { children: ReactNode }) => {
   const [activePet, setActivePet] = useState<Pet | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [savedPets, setSavedPets] = useState<Pet[]>([]);
+  
+  // Step 2 client side routing state
+  const [currentView, setCurrentView] = useState<'landing' | 'preview'>('landing');
+  const [previewPet, setPreviewPet] = useState<{ id: string; url: string; method: 'upload' | 'generate'; prompt?: string } | null>(null);
 
   // Load active pet and saved pets from localStorage on mount
   useEffect(() => {
@@ -95,34 +103,22 @@ export const PetProvider = ({ children }: { children: ReactNode }) => {
     setAiPrompt('');
     setPetName('');
     setIsLoading(false);
+    setCurrentView('landing');
+    setPreviewPet(null);
   };
 
-  const createPet = async (): Promise<boolean> => {
-    if (!petName.trim()) return false;
-    
+  const createPet = async (
+    confirmedName: string,
+    confirmedUrl: string,
+    confirmedMethod: 'upload' | 'generate'
+  ): Promise<boolean> => {
     setIsLoading(true);
     
-    // Simulate API network latency (placeholder backend connection)
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    let imageUrl = '';
-    
-    if (selectedMethod === 'upload' && uploadedImageUrl) {
-      imageUrl = uploadedImageUrl;
-    } else if (selectedMethod === 'generate') {
-      // Create a nice styled placeholder based on prompt or seed (using a highly reliable animal avatar generator URL)
-      const promptSeed = encodeURIComponent(aiPrompt || 'corgi');
-      imageUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${promptSeed}`;
-    } else {
-      setIsLoading(false);
-      return false;
-    }
-
     const newPet: Pet = {
-      id: Date.now().toString(),
-      name: petName.trim(),
-      imageUrl,
-      method: selectedMethod as 'upload' | 'generate',
+      id: `pet-${Date.now()}`,
+      name: confirmedName.trim(),
+      imageUrl: confirmedUrl,
+      method: confirmedMethod,
       createdAt: new Date().toISOString()
     };
 
@@ -134,6 +130,8 @@ export const PetProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('digital_pets_list', JSON.stringify(updatedList));
     
     setIsLoading(false);
+    setCurrentView('landing');
+    setPreviewPet(null);
     return true;
   };
 
@@ -153,6 +151,10 @@ export const PetProvider = ({ children }: { children: ReactNode }) => {
       setActivePet,
       isLoading,
       setIsLoading,
+      currentView,
+      setCurrentView,
+      previewPet,
+      setPreviewPet,
       createPet,
       resetState,
       savedPets,

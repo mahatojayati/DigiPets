@@ -17,6 +17,10 @@ import { LoadingSpinner } from './components/ui/LoadingSpinner';
 import { Modal } from './components/ui/Modal';
 import { Tooltip } from './components/ui/Tooltip';
 
+import { UploadZone } from './components/upload/UploadZone';
+import { PromptModal } from './components/generate/PromptModal';
+import { PetPreview } from './components/preview/PetPreview';
+
 // Inner component to safely consume Pet Context
 const MainAppContent: React.FC = () => {
   const {
@@ -36,43 +40,49 @@ const MainAppContent: React.FC = () => {
     resetState,
     savedPets,
     deletePet,
-    setActivePet
+    setActivePet,
+    currentView,
+    setCurrentView,
+    previewPet,
+    setPreviewPet
   } = usePet();
 
-  const [isNameModalOpen, setIsNameModalOpen] = useState(false);
+  const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-  const [localNameError, setLocalNameError] = useState<string | null>(null);
+  const [confirmedPetName, setConfirmedPetName] = useState("");
 
-  const handleContinueClick = () => {
-    if (!selectedMethod) return;
-
-    // Validation checks before opening modal
-    if (selectedMethod === 'upload' && !uploadedImageUrl) {
-      alert('Please upload a companion PNG first!');
-      return;
-    }
-    if (selectedMethod === 'generate' && !aiPrompt.trim()) {
-      alert('Please describe your dream companion prompt first!');
-      return;
-    }
-
-    setLocalNameError(null);
-    setIsNameModalOpen(true);
+  const handleUploadSuccess = (id: string, url: string) => {
+    setPreviewPet({
+      id,
+      url,
+      method: "upload",
+    });
+    setCurrentView("preview");
   };
 
-  const handleConfirmCreate = async () => {
-    if (!petName.trim()) {
-      setLocalNameError("Your companion needs a name!");
-      return;
-    }
-    
-    setLocalNameError(null);
-    setIsNameModalOpen(false);
-    
-    const success = await createPet();
+  const handleGenerateSuccess = (id: string, url: string, promptUsed: string) => {
+    setIsPromptModalOpen(false);
+    setPreviewPet({
+      id,
+      url,
+      method: "generate",
+      prompt: promptUsed,
+    });
+    setCurrentView("preview");
+  };
+
+  const handleConfirmCreate = async (name: string) => {
+    if (!previewPet) return;
+    setConfirmedPetName(name);
+    const success = await createPet(name, previewPet.url, previewPet.method);
     if (success) {
       setIsSuccessModalOpen(true);
     }
+  };
+
+  const handleCancelPreview = () => {
+    setCurrentView("landing");
+    setPreviewPet(null);
   };
 
   const isContinueEnabled = 
@@ -169,6 +179,16 @@ const MainAppContent: React.FC = () => {
                 </SecondaryButton>
               </div>
             </motion.div>
+          ) : currentView === 'preview' && previewPet ? (
+            /* Show Pet Review Screen */
+            <PetPreview
+              id={previewPet.id}
+              url={previewPet.url}
+              type={previewPet.method}
+              prompt={previewPet.prompt}
+              onConfirm={handleConfirmCreate}
+              onCancel={handleCancelPreview}
+            />
           ) : (
             /* Otherwise, show standard landing page */
             <div key="landing-page" className="flex flex-col items-center">
@@ -202,30 +222,40 @@ const MainAppContent: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="flex flex-col items-center gap-4 w-full max-w-md bg-white border border-[#E2E4E9] p-6 rounded-2xl shadow-xs"
               >
-                <div className="text-center">
+                <div className="text-center w-full">
                   <p className="text-xs font-extrabold tracking-wider uppercase text-[#9E9EAF] mb-1">
                     Companion Status
                   </p>
-                  <p className="text-sm text-[#5C5F6A] font-medium leading-relaxed">
-                    {!selectedMethod 
-                      ? "Choose a creation method above to begin." 
-                      : selectedMethod === 'upload' 
-                        ? (!uploadedImageUrl ? "Upload a PNG transparent image to unlock." : "Custom pet loaded!") 
-                        : (!aiPrompt.trim() ? "Provide an AI prompt template to unlock." : "Dream companion specified!")
-                    }
-                  </p>
+                  
+                  {selectedMethod === 'upload' ? (
+                    <div className="w-full mt-2">
+                      <UploadZone onSuccess={handleUploadSuccess} />
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <p className="text-sm text-[#5C5F6A] font-medium leading-relaxed">
+                        {!selectedMethod 
+                          ? "Choose a creation method above to begin." 
+                          : "Describe your pet in the generator card and click configure to proceed!"
+                        }
+                      </p>
+                      
+                      {selectedMethod === 'generate' && (
+                        <div className="w-full mt-4">
+                          <PrimaryButton
+                            onClick={() => setIsPromptModalOpen(true)}
+                            color="purple"
+                            fullWidth
+                            icon={ArrowRight}
+                            id="landing-continue"
+                          >
+                            Configure & Summon
+                          </PrimaryButton>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-
-                <PrimaryButton
-                  onClick={handleContinueClick}
-                  disabled={!isContinueEnabled}
-                  color={selectedMethod === 'upload' ? 'pink' : 'purple'}
-                  fullWidth
-                  icon={ArrowRight}
-                  id="landing-continue"
-                >
-                  Configure & Continue
-                </PrimaryButton>
               </motion.div>
             </div>
           )}
@@ -283,55 +313,12 @@ const MainAppContent: React.FC = () => {
       {/* Footer Branding */}
       <Footer />
 
-      {/* Name configuration modal */}
-      <Modal
-        isOpen={isNameModalOpen}
-        onClose={() => setIsNameModalOpen(false)}
-        title="Give your pet a Name!"
-        id="name-pet-modal"
-        footer={
-          <div className="flex gap-2.5">
-            <SecondaryButton onClick={() => setIsNameModalOpen(false)}>
-              Cancel
-            </SecondaryButton>
-            <PrimaryButton 
-              onClick={handleConfirmCreate}
-              color={selectedMethod === 'upload' ? 'pink' : 'purple'}
-              id="confirm-pet-creation"
-            >
-              Confirm & Spawn
-            </PrimaryButton>
-          </div>
-        }
-      >
-        <div className="flex flex-col gap-4">
-          <p className="text-xs text-[#5C5F6A] leading-relaxed">
-            Every digital pet needs an identity! Type a cute or heroic name for your upcoming floating companion.
-          </p>
-
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="pet-name-input" className="text-[10px] uppercase tracking-wider font-extrabold text-[#9E9EAF]">
-              Companion Name
-            </label>
-            <input
-              id="pet-name-input"
-              type="text"
-              placeholder="e.g. Barnaby, Sparky, Lola..."
-              value={petName}
-              onChange={(e) => {
-                setPetName(e.target.value);
-                setLocalNameError(null);
-              }}
-              className="w-full px-4 py-2.5 rounded-xl border-2 border-[#E2E4E9] focus:border-[#8338EC] focus:ring-3 focus:ring-[#8338EC]/10 text-sm font-semibold text-[#1A1A1E] outline-hidden transition-all"
-            />
-            {localNameError && (
-              <p className="text-xs text-[#FF6492] font-semibold flex items-center gap-1 mt-0.5">
-                <AlertCircle className="w-3.5 h-3.5" /> {localNameError}
-              </p>
-            )}
-          </div>
-        </div>
-      </Modal>
+      {/* Prompt Modal for AI Generation */}
+      <PromptModal
+        isOpen={isPromptModalOpen}
+        onClose={() => setIsPromptModalOpen(false)}
+        onSuccess={handleGenerateSuccess}
+      />
 
       {/* Success Modal */}
       <Modal
@@ -353,7 +340,7 @@ const MainAppContent: React.FC = () => {
           <div className="w-16 h-16 rounded-full bg-[#F0FFF4] border border-[#06D6A0]/20 flex items-center justify-center text-[#06D6A0] mb-2">
             <Sparkles className="w-8 h-8" />
           </div>
-          <h4 className="font-bold text-lg text-[#1A1A1E]">{petName} is officially alive!</h4>
+          <h4 className="font-bold text-lg text-[#1A1A1E]">{confirmedPetName} is officially alive!</h4>
           <p className="text-xs text-[#5C5F6A] leading-relaxed max-w-sm">
             Congratulations! Your new virtual friend has been saved to your browser collection and is ready to float, play, and explore.
           </p>
