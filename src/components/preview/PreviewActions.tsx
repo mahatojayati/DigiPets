@@ -27,7 +27,7 @@ export const PreviewActions: React.FC<PreviewActionsProps> = ({
       <PrimaryButton
         onClick={onConfirm}
         disabled={confirmDisabled}
-        colorTheme="pink"
+        color="pink"
         className="flex-1 justify-center py-3 gap-1.5 shadow-md"
       >
         <Check className="w-4.5 h-4.5" />

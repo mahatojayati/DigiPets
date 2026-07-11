@@ -51,7 +51,7 @@ export const PromptModal: React.FC<PromptModalProps> = ({
       <PrimaryButton
         onClick={handleSubmit}
         disabled={prompt.trim() === ""}
-        colorTheme="pink"
+        color="pink"
         className="gap-2"
       >
         <Sparkles className="w-4 h-4 fill-white/20 animate-pulse" />
