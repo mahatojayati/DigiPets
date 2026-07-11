@@ -6,6 +6,7 @@ import { usePetStore } from "../../store/petStore";
 import { PetSprite } from "./PetSprite";
 import { PetShadow } from "./PetShadow";
 import { SpeechBubble } from "./SpeechBubble";
+import { EventBus } from "../../ai/EventBus";
 
 interface PetProps {
   petEngine: PetEngine | null;
@@ -25,6 +26,7 @@ export const Pet: React.FC<PetProps> = React.memo(
       if (!petEngine) return;
       petEngine.jump();
       playWithPet(10, 15, 5); // Consumes 10 energy, awards 15 exp, earns 5 coins
+      EventBus.dispatch("CLICK");
     };
 
     return (

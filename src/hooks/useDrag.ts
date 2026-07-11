@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { PetEngine } from "../engine/PetEngine";
 import { PET_SIZE } from "../constants/physics";
+import { EventBus } from "../ai/EventBus";
 
 export function useDrag(petEngine: PetEngine | null) {
   const [isDragging, setIsDragging] = useState(false);
@@ -21,6 +22,7 @@ export function useDrag(petEngine: PetEngine | null) {
 
       setIsDragging(true);
       petEngine.setDragging(true);
+      EventBus.dispatch("DRAG");
     },
     [petEngine]
   );

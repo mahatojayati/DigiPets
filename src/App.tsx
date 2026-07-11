@@ -16,6 +16,7 @@ import { FloatingBackground } from './components/illustrations/FloatingBackgroun
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 import { Modal } from './components/ui/Modal';
 import { Tooltip } from './components/ui/Tooltip';
+import { EventBus } from './ai/EventBus';
 
 import { UploadZone } from './components/upload/UploadZone';
 import { PromptModal } from './components/generate/PromptModal';
@@ -307,6 +308,7 @@ const MainAppContent: React.FC = () => {
                           if (coins >= 5) {
                             feedPet(20);
                             addCoins(-5);
+                            EventBus.dispatch("FEED", 20);
                           } else {
                             alert("Not enough coins! Play with your companion to earn some first. 🪙");
                           }
@@ -323,6 +325,7 @@ const MainAppContent: React.FC = () => {
                         onClick={() => {
                           if (energy >= 15) {
                             playWithPet(15, 25, 15);
+                            EventBus.dispatch("PLAY", { boredom: -30 });
                           } else {
                             alert("Your companion is too exhausted! Let them take a nap first. 🛌");
                           }
@@ -338,6 +341,7 @@ const MainAppContent: React.FC = () => {
                       <button
                         onClick={() => {
                           sleepPet(35);
+                          EventBus.dispatch("PLAY", { boredom: 0 });
                         }}
                         disabled={energy >= 100}
                         className="flex-1 min-w-[100px] flex items-center justify-center gap-1.5 text-xs font-bold py-2.5 px-3 bg-[#EAF5FF] hover:bg-[#D4EAFF] text-[#118AB2] border border-[#118AB2]/10 rounded-xl transition-all disabled:opacity-50 cursor-pointer"

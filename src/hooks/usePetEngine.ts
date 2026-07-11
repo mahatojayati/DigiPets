@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { PetEngine } from "../engine/PetEngine";
 import { PetState } from "../types/animation";
 import { usePetStore } from "../store/petStore";
+import { Brain } from "../ai/Brain";
 
 export function usePetEngine(containerRef: React.RefObject<HTMLDivElement | null>) {
   const petEngineRef = useRef<PetEngine | null>(null);
@@ -17,6 +18,16 @@ export function usePetEngine(containerRef: React.RefObject<HTMLDivElement | null
   }
 
   const petEngine = petEngineRef.current;
+
+  // Register the active PetEngine instance with the AI Brain
+  useEffect(() => {
+    if (!petEngine) return;
+    const brain = Brain.getInstance();
+    brain.registerPetEngine(petEngine);
+    return () => {
+      brain.unregisterPetEngine();
+    };
+  }, [petEngine]);
 
   useEffect(() => {
     if (!petEngine) return;
