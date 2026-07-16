@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Heart, RefreshCw, AlertCircle, Trash2, ArrowRight, Zap, Trophy, Coins, ShoppingBag } from 'lucide-react';
+import { Sparkles, Heart, RefreshCw, AlertCircle, Trash2, ArrowRight, Zap, Trophy, Coins, ShoppingBag, Send, MessageSquare, Settings, Activity, Music, Sun } from 'lucide-react';
 
 import { PetProvider } from './context/PetContext';
 import { usePet } from './hooks/usePet';
@@ -24,6 +24,11 @@ import { PetPreview } from './components/preview/PetPreview';
 
 import { usePetStore } from './store/petStore';
 import { PetCanvas } from './components/pet/PetCanvas';
+
+import { chatWithAI } from './services/aiChat';
+import { BrowserEventsService } from './services/browserEvents';
+import { Brain } from './ai/Brain';
+import { PluginManager } from './ai/plugins/pluginManager';
 
 // Inner component to safely consume Pet Context
 const MainAppContent: React.FC = () => {
@@ -71,6 +76,124 @@ const MainAppContent: React.FC = () => {
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [confirmedPetName, setConfirmedPetName] = useState("");
+
+  // AI Chat & Plugins States
+  const [chatMessages, setChatMessages] = useState<{ sender: "user" | "companion", text: string, timestamp: string }[]>(() => {
+    try {
+      const saved = localStorage.getItem('digital_pets_chat_history');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      { sender: "companion", text: `Hi human! I'm so glad we're hanging out. Ask me anything, or type a message below to chat! ✨`, timestamp: new Date().toLocaleTimeString() }
+    ];
+  });
+  const [chatInput, setChatInput] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const chatBottomRef = useRef<HTMLDivElement | null>(null);
+
+  // Plugin states
+  const [activePlugins, setActivePlugins] = useState<{ id: string, name: string, description: string, icon: string, isEnabled: boolean }[]>(() => {
+    return PluginManager.getInstance().getPlugins().map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      icon: p.icon,
+      isEnabled: p.isEnabled
+    }));
+  });
+
+  // Save chat history
+  useEffect(() => {
+    localStorage.setItem('digital_pets_chat_history', JSON.stringify(chatMessages));
+  }, [chatMessages]);
+
+  // Scroll chat
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages, isTyping]);
+
+  // Start browser event monitoring
+  useEffect(() => {
+    const browserEvents = BrowserEventsService.getInstance();
+    browserEvents.start();
+    return () => {
+      browserEvents.stop();
+    };
+  }, []);
+
+  const handleSendChatMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!chatInput.trim() || isTyping) return;
+
+    const userMsg = chatInput.trim();
+    setChatInput("");
+    setChatMessages(prev => [...prev, { sender: "user", text: userMsg, timestamp: new Date().toLocaleTimeString() }]);
+    setIsTyping(true);
+
+    const brain = Brain.getInstance();
+    brain.playAnimation("think");
+    brain.recordInteraction();
+
+    try {
+      const history = brain.getMemory().getEvents();
+      const reply = await chatWithAI({
+        message: userMsg,
+        petName: activePet?.name || "Companion",
+        personality: {
+          curiosity: Math.round(brain.needs.curiosity),
+          energy: Math.round(brain.needs.energy),
+          kindness: 80,
+          laziness: brain.personality.name === "Lazy" ? 90 : 20,
+          playfulness: Math.round(100 - brain.needs.boredom),
+          confidence: 70
+        },
+        emotions: {
+          happiness: Math.round(brain.needs.happiness),
+          excited: brain.needs.happiness > 70 ? 80 : 30,
+          hungry: Math.round(100 - brain.needs.hunger),
+          sleepy: Math.round(100 - brain.needs.energy),
+          lonely: brain.currentEmotion === "lonely" ? 85 : 10,
+          currentMood: brain.currentEmotion
+        },
+        recentMemories: history,
+        relationshipLevel: level <= 1 ? "Stranger" : level <= 3 ? "Friend" : level <= 5 ? "Best Friend" : "Soul Companion"
+      });
+
+      setChatMessages(prev => [...prev, { sender: "companion", text: reply, timestamp: new Date().toLocaleTimeString() }]);
+      brain.say(reply);
+      brain.playAnimation("talk");
+      brain.getMemory().recordConversation(reply);
+
+      // Award Friendship XP (+10 XP) for talking!
+      usePetStore.getState().addExperience(10);
+    } catch (err) {
+      console.error("Failed to chat:", err);
+      const offlineReply = "*boops your cursor happily*";
+      setChatMessages(prev => [...prev, { sender: "companion", text: offlineReply, timestamp: new Date().toLocaleTimeString() }]);
+      brain.say(offlineReply);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  const handleTogglePlugin = (id: string) => {
+    const isEnabledNow = PluginManager.getInstance().togglePlugin(id);
+    setActivePlugins(prev =>
+      prev.map(p => (p.id === id ? { ...p, isEnabled: isEnabledNow } : p))
+    );
+    
+    // Trigger initial visual reaction
+    const brain = Brain.getInstance();
+    if (isEnabledNow) {
+      if (id === "spotify") {
+        EventBus.dispatch("TRIGGER_PLUGIN", { id: "spotify", data: { track: "Lo-Fi Studying Chill" } });
+      } else if (id === "weather") {
+        EventBus.dispatch("TRIGGER_PLUGIN", { id: "weather", data: { weather: "sunny" } });
+      } else if (id === "github") {
+        EventBus.dispatch("TRIGGER_PLUGIN", { id: "github", data: { type: "commit" } });
+      }
+    }
+  };
 
   // Sync active companion with global engine canvas store
   React.useEffect(() => {
@@ -221,15 +344,31 @@ const MainAppContent: React.FC = () => {
                       />
                     </motion.div>
                   </div>
-
+                  
                   {/* Profile Metadata */}
                   <div className="w-full flex flex-col items-center md:items-start">
                     <h2 className="text-3xl font-extrabold text-[#1A1A1E] tracking-tight mb-1 flex items-center gap-2">
                       {activePet.name} <Heart className="w-5 h-5 text-[#FF7EA5] fill-[#FF7EA5] animate-pulse" />
                     </h2>
-                    <p className="text-xs text-[#9E9EAF] font-bold uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                    <p className="text-xs text-[#9E9EAF] font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5">
                       <Trophy className="w-3.5 h-3.5 text-[#FFD166] fill-[#FFD166]" /> Level {level} Digital Companion
                     </p>
+
+                    {/* Relationship Level Badge */}
+                    {(() => {
+                      const getRelationshipLabel = (lvl: number) => {
+                        if (lvl <= 1) return { label: "Stranger 👥", color: "bg-gray-100 text-gray-600 border-gray-200" };
+                        if (lvl <= 3) return { label: "Friend 🤝", color: "bg-[#EAFBF7] text-[#06D6A0] border-[#06D6A0]/20" };
+                        if (lvl <= 5) return { label: "Best Friend ❤️", color: "bg-[#EAF5FF] text-[#118AB2] border-[#118AB2]/20" };
+                        return { label: "Soul Companion ✨💖", color: "bg-[#FFF0F5] text-[#EF476F] border-[#EF476F]/20" };
+                      };
+                      const rel = getRelationshipLabel(level);
+                      return (
+                        <span className={`inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full border ${rel.color} mb-3 shadow-2xs`}>
+                          {rel.label}
+                        </span>
+                      );
+                    })()}
 
                     {/* Level Experience Meter */}
                     {(() => {
@@ -252,6 +391,86 @@ const MainAppContent: React.FC = () => {
                     <p className="text-xs text-[#5C5F6A] mt-4 leading-relaxed font-medium">
                       👋 Double-click your floating desktop friend anytime to make them jump or earn experience!
                     </p>
+
+                    {/* AI Chat & Conversation Hub */}
+                    <div className="w-full mt-6 bg-white border border-[#E2E4E9] rounded-2xl p-4 shadow-sm">
+                      <h3 className="text-xs font-extrabold tracking-wider uppercase text-[#9E9EAF] mb-3 flex items-center gap-1.5">
+                        <MessageSquare className="w-3.5 h-3.5 text-[#8338EC]" /> AI Conversation Hub
+                      </h3>
+                      
+                      <div className="bg-gray-50/50 border border-gray-100 rounded-xl p-3 h-48 overflow-y-auto flex flex-col gap-2 mb-3">
+                        {chatMessages.map((msg, idx) => (
+                          <div
+                            key={idx}
+                            className={`max-w-[85%] rounded-xl p-2.5 text-xs leading-relaxed ${
+                              msg.sender === "user"
+                                ? "bg-[#8338EC] text-white self-end rounded-br-none"
+                                : "bg-white text-[#1A1A1E] border border-gray-100 self-start rounded-bl-none shadow-3xs"
+                            }`}
+                          >
+                            <p>{msg.text}</p>
+                            <span className={`text-[8px] mt-1 block text-right ${msg.sender === "user" ? "text-purple-200" : "text-gray-400"}`}>
+                              {msg.timestamp}
+                            </span>
+                          </div>
+                        ))}
+                        {isTyping && (
+                          <div className="bg-white border border-gray-100 rounded-xl p-2.5 text-xs text-gray-400 self-start rounded-bl-none shadow-3xs flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 bg-[#8338EC] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <span className="w-1.5 h-1.5 bg-[#8338EC] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <span className="w-1.5 h-1.5 bg-[#8338EC] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                          </div>
+                        )}
+                        <div ref={chatBottomRef} />
+                      </div>
+
+                      <form onSubmit={handleSendChatMessage} className="flex gap-1.5">
+                        <input
+                          type="text"
+                          value={chatInput}
+                          onChange={(e) => setChatInput(e.target.value)}
+                          placeholder={`Message ${activePet?.name || "companion"}...`}
+                          className="flex-1 bg-gray-50 border border-[#E2E4E9] hover:border-gray-300 focus:border-[#8338EC] focus:bg-white text-xs px-3 py-2 rounded-xl outline-none transition-all placeholder-gray-400 text-gray-800"
+                        />
+                        <button
+                          type="submit"
+                          disabled={!chatInput.trim() || isTyping}
+                          className="bg-[#8338EC] hover:bg-[#7226DB] disabled:opacity-40 text-white p-2 rounded-xl transition-all flex-shrink-0 cursor-pointer"
+                        >
+                          <Send className="w-4 h-4" />
+                        </button>
+                      </form>
+                    </div>
+
+                    {/* Sensory Plugins System */}
+                    <div className="w-full mt-4 bg-white border border-[#E2E4E9] rounded-2xl p-4 shadow-sm">
+                      <h3 className="text-xs font-extrabold tracking-wider uppercase text-[#9E9EAF] mb-3 flex items-center gap-1.5">
+                        <Settings className="w-3.5 h-3.5 text-[#8338EC]" /> Sensory Plugins
+                      </h3>
+                      <div className="flex flex-col gap-2">
+                        {activePlugins.map((plugin) => (
+                          <div key={plugin.id} className="flex items-center justify-between border-b border-gray-50 pb-2 last:border-0 last:pb-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-base">{plugin.icon}</span>
+                              <div>
+                                <p className="text-[11px] font-bold text-[#1A1A1E] leading-tight">{plugin.name}</p>
+                                <p className="text-[9px] text-[#9E9EAF] leading-tight mt-0.5">{plugin.description}</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleTogglePlugin(plugin.id)}
+                              className={`text-[10px] font-bold px-2 py-1 rounded-md border transition-all cursor-pointer ${
+                                plugin.isEnabled
+                                  ? "bg-[#06D6A0]/10 border-[#06D6A0]/20 text-[#06D6A0]"
+                                  : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
+                              }`}
+                            >
+                              {plugin.isEnabled ? "ON" : "OFF"}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
 

@@ -4,6 +4,7 @@ import { createServer as createViteServer } from "vite";
 import uploadRouter from "./backend/routes/upload";
 import generateRouter from "./backend/routes/generate";
 import petRouter from "./backend/routes/pet";
+import chatRouter from "./backend/routes/chat";
 import { servePetImage } from "./backend/controllers/petController";
 import { errorHandler } from "./backend/middleware/errorHandler";
 
@@ -26,6 +27,7 @@ async function startServer() {
   app.use("/api/upload", uploadRouter);
   app.use("/api/generate", generateRouter);
   app.use("/api/pet", petRouter);
+  app.use("/api/chat", chatRouter);
   
   // Serve dynamic uploaded/generated files
   app.get("/uploads/:filename", servePetImage);

@@ -7,6 +7,7 @@ import { EmotionEngine } from "./EmotionEngine";
 import { DecisionEngine } from "./DecisionEngine";
 import { Scheduler } from "./Scheduler";
 import { EventBus } from "./EventBus";
+import { PluginManager } from "./plugins/pluginManager";
 import {
   PetNeeds,
   Personality,
@@ -86,7 +87,73 @@ export class Brain {
       this.updateNeed("affection", 1);
     });
 
-    this.unsubscribers.push(unsubFeed, unsubPlay, unsubClick, unsubDrag);
+    // Browser Event Subscriptions for Autonomous Reactivity
+    const unsubHidden = EventBus.subscribe("BROWSER_HIDDEN", () => {
+      this.sleep();
+      this.memory.addEvent("tab_hide", "Went to sleep because the browser window was hidden.");
+    });
+
+    const unsubVisible = EventBus.subscribe("BROWSER_VISIBLE", () => {
+      this.wake();
+      this.playAnimation("happy");
+      this.say("Oh, you're back! I was beginning to miss you. ✨");
+      this.memory.addEvent("browser_event", "Woke up and greeted the user upon tab switch.");
+    });
+
+    const unsubMouseIdle = EventBus.subscribe("BROWSER_MOUSE_IDLE", () => {
+      this.updateNeed("boredom", 15);
+      this.currentEmotion = "lonely";
+      this.playAnimation("think");
+      this.say("It's so quiet... are you still there? 🥺");
+      this.memory.addEvent("ignored", "Felt lonely because the mouse was idle.", 15);
+    });
+
+    const unsubScroll = EventBus.subscribe("BROWSER_SCROLL", () => {
+      this.playAnimation("think");
+      this.updateNeed("curiosity", 2);
+      this.say("Wheee, let's see what's down here! 📜");
+      this.memory.addEvent("scroll", "Looked around curiously as the user scrolled.");
+    });
+
+    const unsubTyping = EventBus.subscribe("BROWSER_TYPING", (key) => {
+      this.updateNeed("curiosity", 4);
+      this.playAnimation("think");
+      if (Math.random() < 0.2) {
+        this.say(`Tap tap tap! What are you typing? 🧐`);
+      }
+      this.memory.addEvent("typing", `Listened to key tap: "${key}"`);
+    });
+
+    const unsubFocus = EventBus.subscribe("BROWSER_FOCUS", () => {
+      this.playAnimation("happy");
+      this.say("Welcome back! Ready to focus? 🚀");
+    });
+
+    const unsubDarkMode = EventBus.subscribe("BROWSER_DARK_MODE", (isDark) => {
+      this.playAnimation("sleep");
+      this.say("Ah, dark mode! Perfect for a cozy rest... *yawns* 😴");
+    });
+
+    const unsubTriggerPlugin = EventBus.subscribe("TRIGGER_PLUGIN", (payload) => {
+      if (payload && payload.id) {
+        PluginManager.getInstance().triggerPlugin(payload.id, this, payload.data);
+      }
+    });
+
+    this.unsubscribers.push(
+      unsubFeed,
+      unsubPlay,
+      unsubClick,
+      unsubDrag,
+      unsubHidden,
+      unsubVisible,
+      unsubMouseIdle,
+      unsubScroll,
+      unsubTyping,
+      unsubFocus,
+      unsubDarkMode,
+      unsubTriggerPlugin
+    );
   }
 
   public static getInstance(): Brain {
