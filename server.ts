@@ -18,7 +18,7 @@ async function startServer() {
   app.get("/api/health", (req, res) => {
     res.json({ 
       status: "online", 
-      message: "Digital Pets backend is ready for Step 2!",
+      message: "DigiPets backend is online and ready!",
       timestamp: new Date().toISOString()
     });
   });
