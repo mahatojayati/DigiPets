@@ -11,16 +11,19 @@ export const useUpload = ({ onSuccess }: UseUploadProps) => {
   const [error, setError] = useState<string | null>(null);
 
   const handleUpload = async (file: File) => {
-    // Basic Client-side Validation
-    if (file.type !== "image/png") {
-      setError("Please select a standard PNG image. Other formats are not supported.");
+    // Basic Client-side Validation (allow common web image types)
+    const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/svg+xml", "image/gif"];
+    const isAllowed = allowedTypes.includes(file.type.toLowerCase()) || file.name.match(/\.(png|jpg|jpeg|webp|svg|gif)$/i);
+
+    if (!isAllowed) {
+      setError("Please select an image file (PNG, JPG, WebP, or SVG).");
       return;
     }
 
-    // Max size 10MB
-    const MAX_SIZE = 10 * 1024 * 1024;
+    // Max size 15MB
+    const MAX_SIZE = 15 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
-      setError("The file size exceeds the 10 MB limit. Please choose a smaller PNG.");
+      setError("The file size exceeds the 15 MB limit. Please choose a smaller image.");
       return;
     }
 

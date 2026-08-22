@@ -5,9 +5,16 @@
 export const APP_NAME = "Digital Pets";
 export const APP_TAGLINE = "Tiny companions that float around your screen and keep you company.";
 
-export const MAX_FILE_SIZE_MB = 5;
+export const MAX_FILE_SIZE_MB = 15;
 export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-export const ALLOWED_FILE_TYPES = ['image/png', 'image/webp'];
+export const ALLOWED_FILE_TYPES = [
+  'image/png',
+  'image/webp',
+  'image/jpeg',
+  'image/jpg',
+  'image/svg+xml',
+  'image/gif'
+];
 
 export const PRESET_AI_PROMPTS = [
   "Cute chubby orange corgi wearing tiny round specs",
