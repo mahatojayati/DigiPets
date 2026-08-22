@@ -120,7 +120,7 @@ export const UploadCard: React.FC<UploadCardProps> = ({
             type="file"
             ref={fileInputRef}
             onChange={handleFileChange}
-            accept=".png,.webp"
+            accept=".png,.webp,.jpg,.jpeg,.svg,.gif"
             className="hidden"
           />
 

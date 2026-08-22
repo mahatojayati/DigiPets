@@ -55,6 +55,7 @@ export const generatePet = async (
 
         if (imageBufferBase64) {
           const buffer = Buffer.from(imageBufferBase64, "base64");
+          const dataUrl = `data:image/png;base64,${imageBufferBase64}`;
           
           saveStoredPet(id, {
             id,
@@ -71,6 +72,7 @@ export const generatePet = async (
             success: true,
             id,
             url: `/uploads/${id}.png`,
+            dataUrl,
             method: "gemini-api",
           });
         }
@@ -84,6 +86,7 @@ export const generatePet = async (
     console.log(`Generating high-quality procedural companion for prompt: "${prompt}"`);
     const { svg, width, height } = generatePetSvg(prompt);
     const buffer = Buffer.from(svg);
+    const dataUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 
     saveStoredPet(id, {
       id,
@@ -100,6 +103,7 @@ export const generatePet = async (
       success: true,
       id,
       url: `/uploads/${id}.svg`,
+      dataUrl,
       method: "procedural-svg",
     });
   } catch (error) {

@@ -72,7 +72,7 @@ export const UploadZone: React.FC<UploadZoneProps> = ({ onSuccess }) => {
           type="file"
           ref={fileInputRef}
           onChange={handleFileChange}
-          accept="image/png"
+          accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
           className="hidden"
           disabled={isUploading}
         />
@@ -89,14 +89,14 @@ export const UploadZone: React.FC<UploadZoneProps> = ({ onSuccess }) => {
             </div>
 
             <p className="text-sm font-semibold text-[#1A1A1E] mb-1">
-              Drag & drop your companion PNG here
+              Drag & drop your companion image here
             </p>
             <p className="text-xs text-[#9E9EAF] mb-3">
               or click to browse your local files
             </p>
             
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider text-[#FF7EA5] bg-[#FFF0F5] border border-[#FF7EA5]/20 uppercase">
-              PNG (Max 10MB)
+              PNG, JPG, WEBP, SVG (Max 15MB)
             </span>
           </div>
         )}

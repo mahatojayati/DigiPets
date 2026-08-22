@@ -25,20 +25,29 @@ export function createExpressApp() {
   app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 
   // 1. Health API Check
-  app.get("/api/health", (req, res) => {
+  const handleHealth = (req: express.Request, res: express.Response) => {
     res.json({
       status: "online",
       message: "DigiPets backend is online and ready!",
       timestamp: new Date().toISOString(),
       platform: process.env.VERCEL ? "vercel-serverless" : "standalone-node",
     });
-  });
+  };
+  app.get("/api/health", handleHealth);
+  app.get("/health", handleHealth);
 
-  // 2. API Routes
+  // 2. API Routes (mounted both at /api/* and root /* for Vercel compatibility)
   app.use("/api/upload", uploadRouter);
+  app.use("/upload", uploadRouter);
+
   app.use("/api/generate", generateRouter);
+  app.use("/generate", generateRouter);
+
   app.use("/api/pet", petRouter);
+  app.use("/pet", petRouter);
+
   app.use("/api/chat", chatRouter);
+  app.use("/chat", chatRouter);
 
   // 3. Dynamic Pet Image Serving
   app.get("/uploads/:filename", servePetImage);
